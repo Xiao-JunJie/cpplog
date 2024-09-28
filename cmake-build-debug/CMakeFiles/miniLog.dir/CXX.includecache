@@ -1,0 +1,36 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+D:/CPP_Project/miniLog/Log/miniLog.h
+iostream
+-
+fstream
+-
+sstream
+-
+string
+-
+mutex
+-
+future
+-
+chrono
+-
+functional
+-
+memory
+-
+cstdarg
+-
+
+D:/CPP_Project/miniLog/main.cpp
+Log/miniLog.h
+D:/CPP_Project/miniLog/Log/miniLog.h
+iostream
+-
+
