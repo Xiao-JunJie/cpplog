@@ -9,12 +9,14 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <deque>
 #include <mutex>
 #include <future>
 #include <chrono>
 #include <functional>
 #include <memory>
-#include <cstdarg>
+#include <thread>
+// #include <cstdarg>
 
 #define LOG_INFO(fmt, args...) do \
 {                             \
@@ -60,8 +62,13 @@ namespace Logging {
 
         std::string logLevelToString(LogLevel level);
 
-        std::ofstream logFile;
-        mutable std::mutex logMutex; // 可变关键字允许在const成员函数中使用此mutex
+        std::ofstream m_logFile;
+        mutable std::mutex m_logMutex;  // 可变关键字允许在const成员函数中使用此mutex
+        std::deque<std::string> m_strDeque;
+
+        void readLogBuf();
+        std::thread m_readBufThread;
+        bool m_readThreadDone;
     };
 } // namespace Logging
 

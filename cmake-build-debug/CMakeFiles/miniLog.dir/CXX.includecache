@@ -15,6 +15,8 @@ sstream
 -
 string
 -
+deque
+-
 mutex
 -
 future
@@ -25,7 +27,7 @@ functional
 -
 memory
 -
-cstdarg
+thread
 -
 
 D:/CPP_Project/miniLog/main.cpp

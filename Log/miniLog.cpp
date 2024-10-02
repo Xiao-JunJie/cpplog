@@ -6,33 +6,52 @@
 
 using namespace Logging;
 
-Logger& Logger::getInstance() {
+Logger& Logger::getInstance()
+{
     static Logger instance;
     return instance;
 }
 
-void Logger::log(LogLevel level, const std::string& message) {
+void Logger::log(LogLevel level, const std::string& message)
+{
     std::ostringstream logStream;
     logStream << currentDateTime() << " [" << logLevelToString(level) << "] " << message << std::endl;
     std::string logEntry = logStream.str();
-    std::cout << logEntry;
 
-    // 使用 std::async 启动异步任务
-    std::async(std::launch::async, [this, logEntry]() {
-        std::lock_guard<std::mutex> guard(logMutex);
-        logFile << logEntry;
-        logFile.flush(); // 确保立即写入磁盘
-    });
+    std::lock_guard<std::mutex> guard(m_logMutex);
+    m_strDeque.push_front(logEntry);
 }
 
-Logger::Logger() : logFile("logfile.log", std::ios_base::app) {
-    if (!logFile.is_open()) {
+void Logger::readLogBuf()
+{
+    while(m_readThreadDone)
+    {
+        while(!m_strDeque.empty())
+        {
+            std::lock_guard<std::mutex> guard(m_logMutex);
+            m_logFile << m_strDeque.back();
+            m_strDeque.pop_back();
+        }
+        m_logFile.flush();
+        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // 休眠100毫秒
+    }
+}
+
+Logger::Logger() : m_logFile("logfile.log", std::ios::out | std::ios::trunc)
+{
+    m_readThreadDone = true;
+    m_readBufThread = std::thread(&Logger::readLogBuf, this);
+    if (!m_logFile.is_open()) {
         throw std::runtime_error("Unable to open log file.");
     }
 }
 
 Logger::~Logger() {
-    logFile.close();
+    m_logFile.close();
+    m_readThreadDone = false;
+    if (m_readBufThread.joinable()) {
+        m_readBufThread.join(); // 或者根据需要调用 detach()
+    }
 }
 
 std::string Logger::currentDateTime() {
