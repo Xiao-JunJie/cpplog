@@ -1,3 +1,0 @@
-"C:\Program Files\JetBrains\CLion 2021.1.3\bin\cmake\win\bin\cmake.exe" -E rm -f CMakeFiles\miniLog.dir/objects.a
-D:\mingw64\bin\ar.exe cr CMakeFiles\miniLog.dir/objects.a @CMakeFiles\miniLog.dir\objects1.rsp
-D:\mingw64\bin\g++.exe -g -Wl,--whole-archive CMakeFiles\miniLog.dir/objects.a -Wl,--no-whole-archive -o miniLog.exe -Wl,--out-implib,libminiLog.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles\miniLog.dir\linklibs.rsp

@@ -1,3 +1,0 @@
-D:/CPP_Project/miniLog/cmake-build-debug/CMakeFiles/edit_cache.dir
-D:/CPP_Project/miniLog/cmake-build-debug/CMakeFiles/miniLog.dir
-D:/CPP_Project/miniLog/cmake-build-debug/CMakeFiles/rebuild_cache.dir

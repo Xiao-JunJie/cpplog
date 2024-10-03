@@ -4,10 +4,9 @@
 #define EPOCH 1000000
 using namespace Logging;
 
-void pressureOneThreadTest()
-{
+void pressureOneThreadTest() {
     std::string msg(30,'*');
-    auto start=std::chrono::high_resolution_clock::now();
+    auto start = std::chrono::high_resolution_clock::now();
     for(int i = 0;i < EPOCH;++i)
     {
         LOG_INFO("log info %d %s", i , msg.c_str());
