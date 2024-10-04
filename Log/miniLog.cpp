@@ -33,17 +33,17 @@ void RingChunkBuff::incConsumerPos() {
     m_nConsumerPos = m_nConsumerPos & (m_nBuffSize - 1);
 }
 
-void RingChunkBuff::appendToBuff( const std::string & data, const int length ) {
+void RingChunkBuff::appendToBuff( const std::string & data, const int & length ) {
     if( length == 0 || length != data.length() ) {
         throw std::runtime_error(" appendToBuff fail ! check your length or data !");
     }
 
-    // 全部的chunk都满了时会发生覆盖
-    if( m_vecBuff[m_nProducePos].used + length <= m_vecBuff[m_nProducePos].cap ) {
-        memcpy(m_vecBuff[m_nProducePos].memory + m_vecBuff[m_nProducePos].used, data.c_str(), length);
-        m_vecBuff[m_nProducePos].used += length;
+    // 全部的chunk都满时会发生递归寻找问题。
+    if(m_vecBuff[m_nProducePos].m_u32Used + length <= m_vecBuff[m_nProducePos].m_u32Cap ) {
+        memcpy(m_vecBuff[m_nProducePos].m_cMemory + m_vecBuff[m_nProducePos].m_u32Used, data.c_str(), length);
+        m_vecBuff[m_nProducePos].m_u32Used += length;
     } else {
-        m_vecBuff[m_nProducePos].flag = FULL;
+        m_vecBuff[m_nProducePos].m_u32Flag = FULL;
         incProducePos();
         appendToBuff(data, length);
         sem_post(&m_semWriteToDisk);  // 信号量 + 1
@@ -52,15 +52,15 @@ void RingChunkBuff::appendToBuff( const std::string & data, const int length ) {
 
 void RingChunkBuff::writeToDisk( FILE *fp ) {
 
-    if( m_vecBuff[m_nConsumerPos].flag == FULL ) {
-        uint32_t wt_len = fwrite(m_vecBuff[m_nConsumerPos].memory, 1, m_vecBuff[m_nConsumerPos].used, fp);
-        if( wt_len != m_vecBuff[m_nConsumerPos].used ) {
+    if(m_vecBuff[m_nConsumerPos].m_u32Flag == FULL ) {
+        uint32_t wt_len = fwrite(m_vecBuff[m_nConsumerPos].m_cMemory, 1, m_vecBuff[m_nConsumerPos].m_u32Used, fp);
+        if( wt_len != m_vecBuff[m_nConsumerPos].m_u32Used ) {
             throw std::runtime_error(" fwrite fail ! ");
         }
 
         fflush(fp);
-        m_vecBuff[m_nConsumerPos].flag = NOTFULL;
-        m_vecBuff[m_nConsumerPos].used = 0;
+        m_vecBuff[m_nConsumerPos].m_u32Flag = NOTFULL;
+        m_vecBuff[m_nConsumerPos].m_u32Used = 0;
         incConsumerPos();
     }
 }
@@ -69,13 +69,13 @@ void RingChunkBuff::forceWriteToDisk(FILE *fp) {
     // 防止程序结束后未标记为满的chunk 丢失，强制写入磁盘
     for(int i = 0; i < RINGBUFFSIZE; ++i )
     {
-        if( m_vecBuff[m_nConsumerPos].used != 0 ) {
-            uint32_t wt_len = fwrite(m_vecBuff[m_nConsumerPos].memory, 1, m_vecBuff[m_nConsumerPos].used, fp);
-            if( wt_len != m_vecBuff[m_nConsumerPos].used ) {
+        if(m_vecBuff[m_nConsumerPos].m_u32Used != 0 ) {
+            uint32_t wt_len = fwrite(m_vecBuff[m_nConsumerPos].m_cMemory, 1, m_vecBuff[m_nConsumerPos].m_u32Used, fp);
+            if( wt_len != m_vecBuff[m_nConsumerPos].m_u32Used ) {
                 throw std::runtime_error(" fwrite fail ! ");
             }
             fflush(fp);
-            m_vecBuff[m_nConsumerPos].used = 0;
+            m_vecBuff[m_nConsumerPos].m_u32Used = 0;
             incConsumerPos();
         } else {
             sem_close(&m_semWriteToDisk);
@@ -93,11 +93,9 @@ Logger& Logger::getInstance() {
     return instance;
 }
 
-void Logger::log( const LogLevel level, const std::string& message ) {
-    std::ostringstream logStream;
-    logStream << currentDateTime() << logLevelToString(level) << message << "\n";
-    std::string logEntry = logStream.str();
+void Logger::log( LogLevel level, const std::string& message ) {
 
+    std::string logEntry = currentDateTime() + logLevelToString(level) + message + "\n";
     std::lock_guard<std::mutex> guard(m_logMutex);
     m_pRingChunkBuff->appendToBuff(logEntry, logEntry.length());
 }
@@ -141,7 +139,7 @@ std::string Logger::currentDateTime() {
     return std::string(buf);
 }
 
-std::string Logger::logLevelToString( const LogLevel level ) {
+std::string Logger::logLevelToString( LogLevel & level ) {
     switch ( level ) {
         case LogLevel::INFO: return "[INFO]";
         case LogLevel::DEBUG: return "[DEBUG]";

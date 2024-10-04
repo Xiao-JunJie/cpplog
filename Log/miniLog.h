@@ -6,7 +6,6 @@
 #define _MINILOG_H
 
 #include <iostream>
-#include <sstream>
 #include <string>
 #include <vector>
 #include <mutex>
@@ -14,7 +13,6 @@
 #include <thread>
 #include <stdio.h>
 #include <semaphore.h>
-// #include <cstdarg>
 
 #define LOG_INFO(fmt, args...) do        \
 {                                        \
@@ -48,7 +46,7 @@
 #define FULL 1
 #define NOTFULL 0
 
-#define CHUNKMEMSIZE (1024 * 1024 * 2)
+#define CHUNKMEMSIZE (1024 * 1024 * 1)
 
 // 一定是2的n次幂
 #define RINGBUFFSIZE 8
@@ -62,16 +60,16 @@ namespace Logging
     };
 
     struct Chunk {
-        uint32_t cap;
-        uint32_t used;
-        uint32_t flag;
-        char * memory;
+        uint32_t m_u32Cap;
+        uint32_t m_u32Used;
+        uint32_t m_u32Flag;
+        char * m_cMemory;
 
-        Chunk() : cap(CHUNKMEMSIZE), used(0), flag(NOTFULL) {
-            memory = new char[CHUNKMEMSIZE];
+        Chunk() : m_u32Cap(CHUNKMEMSIZE), m_u32Used(0), m_u32Flag(NOTFULL) {
+            m_cMemory = new char[CHUNKMEMSIZE];
         }
         ~Chunk() {
-            safe_delete(memory);
+            safe_delete(m_cMemory);
         }
     };
 
@@ -90,7 +88,7 @@ namespace Logging
 
         void incConsumerPos();
 
-        void appendToBuff( const std::string &data, const int length );
+        void appendToBuff( const std::string &data, const int & length );
 
         void writeToDisk(FILE *fp);
 
@@ -120,7 +118,7 @@ namespace Logging
 
         std::string currentDateTime();
 
-        std::string logLevelToString( LogLevel level );
+        std::string logLevelToString( LogLevel &level );
 
         mutable std::mutex m_logMutex;       // 可变关键字允许在const成员函数中使用此mutex
         FILE *m_pFilePoint;
