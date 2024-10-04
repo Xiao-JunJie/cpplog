@@ -19,6 +19,7 @@ void pressureOneThreadTest() {
 }
 
 int main() {
+    LOG_INFO("log init");
     pressureOneThreadTest();
 
     return 0;

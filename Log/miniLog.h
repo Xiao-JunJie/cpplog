@@ -13,6 +13,7 @@
 #include <chrono>
 #include <thread>
 #include <stdio.h>
+#include <semaphore.h>
 // #include <cstdarg>
 
 #define LOG_INFO(fmt, args...) do        \
@@ -46,7 +47,11 @@
 
 #define FULL 1
 #define NOTFULL 0
-#define RINGBUFFSIZE 4
+
+#define CHUNKMEMSIZE (1024 * 1024 * 2)
+
+// 一定是2的n次幂
+#define RINGBUFFSIZE 8
 
 namespace Logging
 {
@@ -62,8 +67,8 @@ namespace Logging
         uint32_t flag;
         char * memory;
 
-        Chunk() : cap(1024 * 1024 * 4), used(0), flag(NOTFULL) {
-            memory = new char[1024 * 1024 * 4];
+        Chunk() : cap(CHUNKMEMSIZE), used(0), flag(NOTFULL) {
+            memory = new char[CHUNKMEMSIZE];
         }
         ~Chunk() {
             safe_delete(memory);
@@ -75,7 +80,7 @@ namespace Logging
 
         RingChunkBuff( const int size = RINGBUFFSIZE );
 
-        ~RingChunkBuff() = default;
+        ~RingChunkBuff();
 
         int getProducePos();
 
@@ -91,11 +96,15 @@ namespace Logging
 
         void forceWriteToDisk(FILE *fp);
 
+        sem_t & getSemWriteToDisk();
+
     private:
         std::vector<Chunk> m_vecBuff;
         int m_nProducePos;
         int m_nConsumerPos;
         int m_nBuffSize;
+
+        sem_t m_semWriteToDisk;
     };
 
     class Logger {

@@ -8,6 +8,11 @@ using namespace Logging;
 
 RingChunkBuff::RingChunkBuff( int size ) : m_nProducePos(0), m_nConsumerPos(0), m_nBuffSize(size) {
     m_vecBuff.resize(size);
+    sem_init(&m_semWriteToDisk, 0, 0);
+}
+
+RingChunkBuff::~RingChunkBuff() {
+    sem_destroy(&m_semWriteToDisk);
 }
 
 int RingChunkBuff::getProducePos() {
@@ -41,10 +46,12 @@ void RingChunkBuff::appendToBuff( const std::string & data, const int length ) {
         m_vecBuff[m_nProducePos].flag = FULL;
         incProducePos();
         appendToBuff(data, length);
+        sem_post(&m_semWriteToDisk);  // 信号量 + 1
     }
 }
 
 void RingChunkBuff::writeToDisk( FILE *fp ) {
+
     if( m_vecBuff[m_nConsumerPos].flag == FULL ) {
         uint32_t wt_len = fwrite(m_vecBuff[m_nConsumerPos].memory, 1, m_vecBuff[m_nConsumerPos].used, fp);
         if( wt_len != m_vecBuff[m_nConsumerPos].used ) {
@@ -59,7 +66,7 @@ void RingChunkBuff::writeToDisk( FILE *fp ) {
 }
 
 void RingChunkBuff::forceWriteToDisk(FILE *fp) {
-    // 防止未标记为满的chunk 丢失，此处强制写入磁盘
+    // 防止程序结束后未标记为满的chunk 丢失，强制写入磁盘
     for(int i = 0; i < RINGBUFFSIZE; ++i )
     {
         if( m_vecBuff[m_nConsumerPos].used != 0 ) {
@@ -70,8 +77,15 @@ void RingChunkBuff::forceWriteToDisk(FILE *fp) {
             fflush(fp);
             m_vecBuff[m_nConsumerPos].used = 0;
             incConsumerPos();
+        } else {
+            sem_close(&m_semWriteToDisk);
+            break;
         }
     }
+}
+
+sem_t & RingChunkBuff::getSemWriteToDisk() {
+    return m_semWriteToDisk;
 }
 
 Logger& Logger::getInstance() {
@@ -90,9 +104,12 @@ void Logger::log( const LogLevel level, const std::string& message ) {
 
 void Logger::readLogBuf() {
     while( m_readThreadDone ) {
-        // std::lock_guard<std::mutex> guard(m_logMutex);
+        struct timespec ts;
+        clock_gettime(CLOCK_REALTIME, &ts); // 获取当前时间
+        ts.tv_sec += 1;
+        sem_timedwait(&m_pRingChunkBuff->getSemWriteToDisk(), &ts);   // 1 s 后强制解除等待，避免死等
+
         m_pRingChunkBuff->writeToDisk(m_pFilePoint);
-        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // 休眠100毫秒
     }
 }
 
