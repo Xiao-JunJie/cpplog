@@ -24,29 +24,33 @@ int RingChunkBuff::getConsumerPos() {
 }
 
 void RingChunkBuff::incProducePos() {
-    ++m_nProducePos;
-    m_nProducePos = m_nProducePos & (m_nBuffSize - 1);
+    m_nProducePos = (++m_nProducePos) & (m_nBuffSize - 1);
 }
 
 void RingChunkBuff::incConsumerPos() {
-    ++m_nConsumerPos;
-    m_nConsumerPos = m_nConsumerPos & (m_nBuffSize - 1);
+    m_nConsumerPos = (++m_nConsumerPos) & (m_nBuffSize - 1);
 }
 
-void RingChunkBuff::appendToBuff( const std::string & data, const int & length ) {
-    if( length == 0 || length != data.length() ) {
+void RingChunkBuff::appendToBuff( const char * data, const int length ) {
+    if( length == 0 || data == nullptr ) {
         throw std::runtime_error(" appendToBuff fail ! check your length or data !");
     }
 
-    // 全部的chunk都满时会发生递归寻找问题。
+    // 全部的chunk都满时会发生写不进的问题
     if(m_vecBuff[m_nProducePos].m_u32Used + length <= m_vecBuff[m_nProducePos].m_u32Cap ) {
-        memcpy(m_vecBuff[m_nProducePos].m_cMemory + m_vecBuff[m_nProducePos].m_u32Used, data.c_str(), length);
+        memcpy(m_vecBuff[m_nProducePos].m_cMemory + m_vecBuff[m_nProducePos].m_u32Used, data, length);
         m_vecBuff[m_nProducePos].m_u32Used += length;
     } else {
         m_vecBuff[m_nProducePos].m_u32Flag = FULL;
         incProducePos();
-        appendToBuff(data, length);
         sem_post(&m_semWriteToDisk);  // 信号量 + 1
+        if( m_vecBuff[m_nProducePos].m_u32Flag == FULL ) {
+            throw std::runtime_error(" appendToBuff fail ! check your RingBUff size !");
+        } else {
+            memcpy(m_vecBuff[m_nProducePos].m_cMemory + m_vecBuff[m_nProducePos].m_u32Used, data, length);
+            m_vecBuff[m_nProducePos].m_u32Used += length;
+        }
+        // appendToBuff(data, length);
     }
 }
 
@@ -78,7 +82,7 @@ void RingChunkBuff::forceWriteToDisk(FILE *fp) {
             m_vecBuff[m_nConsumerPos].m_u32Used = 0;
             incConsumerPos();
         } else {
-            sem_close(&m_semWriteToDisk);
+            // sem_close(&m_semWriteToDisk);
             break;
         }
     }
@@ -93,11 +97,12 @@ Logger& Logger::getInstance() {
     return instance;
 }
 
-void Logger::log( LogLevel level, const std::string& message ) {
+void Logger::log( LogLevel level, char * message) {
 
-    std::string logEntry = currentDateTime() + logLevelToString(level) + message + "\n";
+    currentDateTime(m_pTmpCache, 512);
+    strcat(m_pTmpCache, message);
     std::lock_guard<std::mutex> guard(m_logMutex);
-    m_pRingChunkBuff->appendToBuff(logEntry, logEntry.length());
+    m_pRingChunkBuff->appendToBuff(m_pTmpCache, strlen(m_pTmpCache));
 }
 
 void Logger::readLogBuf() {
@@ -113,6 +118,7 @@ void Logger::readLogBuf() {
 
 Logger::Logger() : m_readBufThread(&Logger::readLogBuf, this) {
     m_pRingChunkBuff = new RingChunkBuff();
+    m_pTmpCache = new char[512];
     m_readThreadDone = true;
     m_pFilePoint = fopen("logfile.log", "w");
     if( m_pFilePoint == nullptr ) {
@@ -127,16 +133,15 @@ Logger::~Logger() {
         m_readBufThread.join(); // 或者根据需要调用 detach()
     }
     safe_delete(m_pRingChunkBuff);
+    safe_delete(m_pTmpCache);
     fclose(m_pFilePoint);
 }
 
-std::string Logger::currentDateTime() {
+void Logger::currentDateTime(char* buffer, int bufferSize) {
     std::time_t now = std::time(nullptr);
-    char buf[80];
-    struct tm* timeinfo;
-    timeinfo = localtime(&now);
-    strftime(buf, sizeof(buf), "%Y-%m-%d %X", timeinfo);
-    return std::string(buf);
+    struct tm* timeinfo = localtime(&now);
+
+    strftime(buffer, bufferSize, "%Y-%m-%d %X", timeinfo);
 }
 
 std::string Logger::logLevelToString( LogLevel & level ) {

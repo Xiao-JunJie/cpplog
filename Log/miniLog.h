@@ -6,33 +6,34 @@
 #define _MINILOG_H
 
 #include <iostream>
-#include <string>
+#include <string.h>
 #include <vector>
 #include <mutex>
 #include <chrono>
 #include <thread>
 #include <stdio.h>
 #include <semaphore.h>
+#include <atomic>
 
 #define LOG_INFO(fmt, args...) do        \
 {                                        \
-    char buff[1024] = {0};               \
-    snprintf(buff, sizeof(buff), "[%s:%d]" fmt, __FUNCTION__, __LINE__, ##args); \
-    Logging::Logger::getInstance().log(Logging::LogLevel::INFO, buff);           \
+    char buff[512] = {0};                \
+    snprintf(buff, sizeof(buff),  "%s[%s:%d]" fmt "\n", "[INFO]", __FUNCTION__, __LINE__, ##args);  \
+    Logging::Logger::getInstance().log(Logging::LogLevel::INFO, buff);                               \
 } while(false);
 
 #define LOG_DEBUG(fmt, args...) do      \
 {                                       \
-    char buff[1024] = {0};              \
-    snprintf(buff, sizeof(buff), "[%s:%d]" fmt, __FUNCTION__, __LINE__, ##args); \
-    Logging::Logger::getInstance().log(Logging::LogLevel::DEBUG, buff);          \
+    char buff[512] = {0};               \
+    snprintf(buff, sizeof(buff),  "%s [%s:%d]" fmt "\n", "[DEBUG]", __FUNCTION__, __LINE__, ##args);  \
+    Logging::Logger::getInstance().log(Logging::LogLevel::DEBUG, buff);                               \
 } while(false);
 
 #define LOG_ERR(fmt, args...) do        \
 {                                       \
-    char buff[1024] = {0};              \
-    snprintf(buff, sizeof(buff), "[%s:%d]" fmt, __FUNCTION__, __LINE__, ##args); \
-    Logging::Logger::getInstance().log(Logging::LogLevel::ERROR, buff);          \
+    char buff[512] = {0};               \
+    snprintf(buff, sizeof(buff),  "%s [%s:%d]" fmt "\n", "[ERR]", __FUNCTION__, __LINE__, ##args);     \
+    Logging::Logger::getInstance().log(Logging::LogLevel::ERROR, buff);                                \
 } while(false)
 
 #define safe_delete(p) do       \
@@ -46,7 +47,7 @@
 #define FULL 1
 #define NOTFULL 0
 
-#define CHUNKMEMSIZE (1024 * 1024 * 1)
+#define CHUNKMEMSIZE (1024 * 1024 * 2)
 
 // 一定是2的n次幂
 #define RINGBUFFSIZE 8
@@ -88,7 +89,7 @@ namespace Logging
 
         void incConsumerPos();
 
-        void appendToBuff( const std::string &data, const int & length );
+        void appendToBuff( const char * data, const int length );
 
         void writeToDisk(FILE *fp);
 
@@ -98,8 +99,8 @@ namespace Logging
 
     private:
         std::vector<Chunk> m_vecBuff;
-        int m_nProducePos;
-        int m_nConsumerPos;
+        int m_nProducePos;     // 更改只在appendToBuf,而该函数进入前是上锁的
+        int m_nConsumerPos;    // 单线程改变
         int m_nBuffSize;
 
         sem_t m_semWriteToDisk;
@@ -109,24 +110,26 @@ namespace Logging
     public:
         static Logger& getInstance();
 
-        void log( LogLevel level, const std::string& message );
+        void log( LogLevel level, char * message);
+
+        static void currentDateTime(char* buffer, int bufferSize);
 
     private:
         Logger();
 
         ~Logger();
 
-        std::string currentDateTime();
-
         std::string logLevelToString( LogLevel &level );
 
-        mutable std::mutex m_logMutex;       // 可变关键字允许在const成员函数中使用此mutex
+        mutable std::mutex m_logMutex;          // 允许在const成员函数中使用此mutex
         FILE *m_pFilePoint;
         RingChunkBuff *m_pRingChunkBuff;
 
         void readLogBuf();
         std::thread m_readBufThread;
         bool m_readThreadDone;
+
+        char * m_pTmpCache;
     };
 } // namespace Logging
 
