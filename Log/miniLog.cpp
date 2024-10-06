@@ -24,11 +24,11 @@ int RingChunkBuff::getConsumerPos() {
 }
 
 void RingChunkBuff::incProducePos() {
-    m_nProducePos = (++m_nProducePos) & (m_nBuffSize - 1);
+    m_nProducePos = (m_nProducePos + 1) & (m_nBuffSize - 1);
 }
 
 void RingChunkBuff::incConsumerPos() {
-    m_nConsumerPos = (++m_nConsumerPos) & (m_nBuffSize - 1);
+    m_nConsumerPos = (m_nConsumerPos + 1) & (m_nBuffSize - 1);
 }
 
 void RingChunkBuff::appendToBuff( const char * data, const int length ) {
@@ -99,17 +99,19 @@ Logger& Logger::getInstance() {
 
 void Logger::log( LogLevel level, char * message) {
 
-    currentDateTime(m_pTmpCache, 512);
-    strcat(m_pTmpCache, message);
     std::lock_guard<std::mutex> guard(m_logMutex);
-    m_pRingChunkBuff->appendToBuff(m_pTmpCache, strlen(m_pTmpCache));
+    currentDateTime(m_pTmpCache, 512);
+    int len = strlen(message);
+    memcpy(m_pTmpCache + 19, message, len);
+    m_pRingChunkBuff->appendToBuff(m_pTmpCache, len + 19);
 }
 
 void Logger::readLogBuf() {
     while( m_readThreadDone ) {
         struct timespec ts;
-        clock_gettime(CLOCK_REALTIME, &ts); // 获取当前时间
+        clock_gettime(CLOCK_REALTIME, &ts); // 获取当前时间,与std::time 不同为纳秒级
         ts.tv_sec += 1;
+
         sem_timedwait(&m_pRingChunkBuff->getSemWriteToDisk(), &ts);   // 1 s 后强制解除等待，避免死等
 
         m_pRingChunkBuff->writeToDisk(m_pFilePoint);
@@ -139,8 +141,12 @@ Logger::~Logger() {
 
 void Logger::currentDateTime(char* buffer, int bufferSize) {
     std::time_t now = std::time(nullptr);
-    struct tm* timeinfo = localtime(&now);
+    if( m_lastTime && difftime(m_lastTime, now) <= 0.1 ) {
+        return;
+    }
 
+    m_lastTime = now;
+    struct tm* timeinfo = localtime(&now);
     strftime(buffer, bufferSize, "%Y-%m-%d %X", timeinfo);
 }
 

@@ -78,7 +78,6 @@ namespace Logging
     public:
 
         RingChunkBuff( const int size = RINGBUFFSIZE );
-
         ~RingChunkBuff();
 
         int getProducePos();
@@ -112,12 +111,13 @@ namespace Logging
 
         void log( LogLevel level, char * message);
 
-        static void currentDateTime(char* buffer, int bufferSize);
+        void currentDateTime(char* buffer, int bufferSize);
 
     private:
         Logger();
-
         ~Logger();
+        Logger(const Logger & ) = delete;
+        Logger & operator = (const Logger & ) = delete;
 
         std::string logLevelToString( LogLevel &level );
 
@@ -129,7 +129,9 @@ namespace Logging
         std::thread m_readBufThread;
         bool m_readThreadDone;
 
-        char * m_pTmpCache;
+        char * m_pTmpCache;        // log数据的组装缓存
+
+        std::time_t m_lastTime;    // 更近的日志时间
     };
 } // namespace Logging
 
