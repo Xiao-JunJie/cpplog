@@ -5,7 +5,7 @@
 using namespace Logging;
 
 void pressureOneThreadTest() {
-    std::string msg(30,'*');
+    std::string msg(40,'*');
     auto start = std::chrono::high_resolution_clock::now();
     for(int i = 0;i < EPOCH;++i)
     {
