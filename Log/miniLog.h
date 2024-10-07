@@ -47,10 +47,10 @@
 #define FULL 1
 #define NOTFULL 0
 
-#define CHUNKMEMSIZE (1024 * 1024 * 2)
+#define CHUNKMEMSIZE (1024 * 256)
 
 // 一定是2的n次幂
-#define RINGBUFFSIZE 8
+#define RINGBUFFSIZE 64
 
 namespace Logging
 {
