@@ -5,6 +5,7 @@
 #ifndef _MINILOG_H
 #define _MINILOG_H
 
+#include "SpinLock.h"
 #include <iostream>
 #include <string.h>
 #include <vector>
@@ -13,27 +14,26 @@
 #include <thread>
 #include <stdio.h>
 #include <semaphore.h>
-#include <atomic>
 
 #define LOG_INFO(fmt, args...) do        \
 {                                        \
     char buff[512] = {0};                \
-    snprintf(buff, sizeof(buff),  "%s[%s:%d]" fmt "\n", "[INFO]", __FUNCTION__, __LINE__, ##args);  \
-    Logging::Logger::getInstance().log(Logging::LogLevel::INFO, buff);                               \
+    snprintf(buff, sizeof(buff),  "%s[%s:%d]" fmt "\n", "[INFO]", __FUNCTION__, __LINE__, ##args);   \
+    Logging::Logger::getInstance().log( buff );                                                      \
 } while(false);
 
 #define LOG_DEBUG(fmt, args...) do      \
 {                                       \
     char buff[512] = {0};               \
     snprintf(buff, sizeof(buff),  "%s [%s:%d]" fmt "\n", "[DEBUG]", __FUNCTION__, __LINE__, ##args);  \
-    Logging::Logger::getInstance().log(Logging::LogLevel::DEBUG, buff);                               \
+    Logging::Logger::getInstance().log( buff );                                                       \
 } while(false);
 
 #define LOG_ERR(fmt, args...) do        \
 {                                       \
     char buff[512] = {0};               \
     snprintf(buff, sizeof(buff),  "%s [%s:%d]" fmt "\n", "[ERR]", __FUNCTION__, __LINE__, ##args);     \
-    Logging::Logger::getInstance().log(Logging::LogLevel::ERROR, buff);                                \
+    Logging::Logger::getInstance().log( buff );                                                        \
 } while(false)
 
 #define safe_delete(p) do       \
@@ -109,7 +109,7 @@ namespace Logging
     public:
         static Logger& getInstance();
 
-        void log( LogLevel level, char * message);
+        void log( char * message);
 
         void currentDateTime(char* buffer, int bufferSize);
 
@@ -121,6 +121,7 @@ namespace Logging
 
         std::string logLevelToString( LogLevel &level );
 
+        SpinLock m_spinLock;
         mutable std::mutex m_logMutex;          // 允许在const成员函数中使用此mutex
         FILE *m_pFilePoint;
         RingChunkBuff *m_pRingChunkBuff;

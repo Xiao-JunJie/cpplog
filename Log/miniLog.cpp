@@ -97,13 +97,17 @@ Logger& Logger::getInstance() {
     return instance;
 }
 
-void Logger::log( LogLevel level, char * message) {
+void Logger::log( char * message) {
 
-    std::lock_guard<std::mutex> guard(m_logMutex);
+    // std::lock_guard<std::mutex> guard(m_logMutex);
+    m_spinLock.lock();
+
     currentDateTime(m_pTmpCache, 512);
     int len = strlen(message);
     memcpy(m_pTmpCache + 19, message, len);
     m_pRingChunkBuff->appendToBuff(m_pTmpCache, len + 19);
+
+    m_spinLock.unlock();
 }
 
 void Logger::readLogBuf() {
