@@ -45,7 +45,8 @@ void RingChunkBuff::appendToBuff( const char * data, const int length ) {
         incProducePos();
         sem_post(&m_semWriteToDisk);  // 信号量 + 1
         if( m_vecBuff[m_nProducePos].m_u32Flag == FULL ) {
-            throw std::runtime_error(" appendToBuff fail ! check your RingBUff size !");
+            // std::cout << " RingBuff filled ! reset your RingBUff size !" << std::endl;
+            throw std::runtime_error(" RingBuff filled ! reset your RingBUff size !");
         } else {
             memcpy(m_vecBuff[m_nProducePos].m_cMemory + m_vecBuff[m_nProducePos].m_u32Used, data, length);
             m_vecBuff[m_nProducePos].m_u32Used += length;
@@ -92,8 +93,9 @@ sem_t & RingChunkBuff::getSemWriteToDisk() {
     return m_semWriteToDisk;
 }
 
-Logger& Logger::getInstance() {
-    static Logger instance;
+Logger& Logger::getInstance(std::string filename, int maxsize) {
+    static Logger instance(filename, maxsize);
+
     return instance;
 }
 
@@ -122,12 +124,13 @@ void Logger::readLogBuf() {
     }
 }
 
-Logger::Logger() : m_readBufThread(&Logger::readLogBuf, this) {
+Logger::Logger(std::string & filename, int & maxsize) : m_logFileName(filename), m_readBufThread(&Logger::readLogBuf, this) {
     m_pRingChunkBuff = new RingChunkBuff();
     m_pTmpCache = new char[512];
     m_readThreadDone = true;
-    m_pFilePoint = fopen("logfile.log", "w");
+    m_pFilePoint = fopen(m_logFileName.c_str(), "w");
     if( m_pFilePoint == nullptr ) {
+        std::cout << m_logFileName << std::endl;
         throw std::runtime_error("Unable to open log file.");
     }
 }

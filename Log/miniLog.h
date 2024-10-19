@@ -25,16 +25,18 @@
 #define LOG_DEBUG(fmt, args...) do      \
 {                                       \
     char buff[512] = {0};               \
-    snprintf(buff, sizeof(buff),  "%s [%s:%d]" fmt "\n", "[DEBUG]", __FUNCTION__, __LINE__, ##args);  \
+    snprintf(buff, sizeof(buff),  "%s[%s:%d]" fmt "\n", "[DEBUG]", __FUNCTION__, __LINE__, ##args);   \
     Logging::Logger::getInstance().log( buff );                                                       \
 } while(false);
 
 #define LOG_ERR(fmt, args...) do        \
 {                                       \
     char buff[512] = {0};               \
-    snprintf(buff, sizeof(buff),  "%s [%s:%d]" fmt "\n", "[ERR]", __FUNCTION__, __LINE__, ##args);     \
+    snprintf(buff, sizeof(buff),  "%s[%s:%d]" fmt "\n", "[ERR]", __FUNCTION__, __LINE__, ##args);      \
     Logging::Logger::getInstance().log( buff );                                                        \
 } while(false)
+
+#define SET_LOG(filename, maxsize) Logging::Logger::getInstance(filename, maxsize)
 
 #define safe_delete(p) do       \
 {                               \
@@ -77,7 +79,8 @@ namespace Logging
     class RingChunkBuff {
     public:
 
-        RingChunkBuff( const int size = RINGBUFFSIZE );
+        explicit RingChunkBuff( const int size = RINGBUFFSIZE );
+
         ~RingChunkBuff();
 
         int getProducePos();
@@ -107,17 +110,20 @@ namespace Logging
 
     class Logger {
     public:
-        static Logger& getInstance();
+        Logger(const Logger & ) = delete;
+
+        Logger & operator = (const Logger & ) = delete;
+
+        static Logger& getInstance(std::string filename = "logfile.log", int maxsize = 200);
 
         void log( char * message);
 
         void currentDateTime(char* buffer, int bufferSize);
 
     private:
-        Logger();
+        explicit Logger(std::string & filename, int & maxsize);
+
         ~Logger();
-        Logger(const Logger & ) = delete;
-        Logger & operator = (const Logger & ) = delete;
 
         std::string logLevelToString( LogLevel &level );
 
@@ -133,6 +139,10 @@ namespace Logging
         char * m_pTmpCache;        // log数据的组装缓存
 
         std::time_t m_lastTime;    // 更近的日志时间
+
+        std::string m_logFileName;
+
+        int m_logMaxSize;         // mb
     };
 } // namespace Logging
 

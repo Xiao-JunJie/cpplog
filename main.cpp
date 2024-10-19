@@ -34,7 +34,7 @@ void pressureMulThreadTest() {
 }
 
 int main() {
-    LOG_INFO("log init");
+    SET_LOG("logfile.log", 200);
 
 #if 0
     // 单线程的测试
